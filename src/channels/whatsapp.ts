@@ -354,6 +354,46 @@ export class WhatsAppChannel implements Channel {
     });
   }
 
+  async sendMedia(
+    jid: string,
+    type: 'image' | 'video' | 'audio',
+    filePath: string,
+    caption?: string,
+  ): Promise<void> {
+    if (!this.connected) {
+      logger.warn({ jid, type }, 'WA disconnected, cannot send media');
+      return;
+    }
+    let buffer: Buffer;
+    try {
+      buffer = fs.readFileSync(filePath);
+    } catch (err) {
+      logger.warn({ jid, type, filePath, err }, 'Failed to read media file');
+      return;
+    }
+    try {
+      let content: Parameters<typeof this.sock.sendMessage>[1];
+      if (type === 'image') {
+        content = { image: buffer, caption };
+      } else if (type === 'video') {
+        content = { video: buffer, caption };
+      } else {
+        content = { audio: buffer, mimetype: 'audio/mp4' };
+      }
+      const sent = await this.sock.sendMessage(jid, content);
+      if (sent?.key?.id && sent.message) {
+        this.sentMessageCache.set(sent.key.id, sent.message);
+        if (this.sentMessageCache.size > 256) {
+          const oldest = this.sentMessageCache.keys().next().value!;
+          this.sentMessageCache.delete(oldest);
+        }
+      }
+      logger.info({ jid, type, filePath }, 'Media sent');
+    } catch (err) {
+      logger.warn({ jid, type, filePath, err }, 'Failed to send media');
+    }
+  }
+
   async sendMessage(jid: string, text: string): Promise<void> {
     // Prefix bot messages with assistant name so users know who's speaking.
     // On a shared number, prefix is also needed in DMs (including self-chat)

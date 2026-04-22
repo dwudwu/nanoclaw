@@ -49,7 +49,7 @@ import {
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
-import { findChannel, formatMessages, formatOutbound } from './router.js';
+import { extractMediaTags, findChannel, formatMessages, formatOutbound } from './router.js';
 import {
   restoreRemoteControl,
   startRemoteControl,
@@ -285,6 +285,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   let hadError = false;
   let outputSentToUser = false;
 
+  const groupDir = resolveGroupFolderPath(group.folder);
   const output = await runAgent(group, prompt, chatJid, imageAttachments, async (result) => {
     // Streaming output callback — called for each agent result
     if (result.result) {
@@ -293,8 +294,26 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
           ? result.result
           : JSON.stringify(result.result);
       // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
-      const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
+      const stripped = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
       logger.info({ group: group.name }, `Agent output: ${raw.length} chars`);
+
+      // Extract and send media files referenced by the agent
+      const { text, media } = extractMediaTags(stripped);
+      for (const item of media) {
+        // Only allow paths inside the group's writable workspace
+        if (!item.path.startsWith('/workspace/group/')) {
+          logger.warn({ path: item.path }, 'send_media: path outside /workspace/group/, skipped');
+          continue;
+        }
+        const hostPath = path.join(groupDir, item.path.slice('/workspace/group/'.length));
+        if (!fs.existsSync(hostPath)) {
+          logger.warn({ hostPath }, 'send_media: file not found on host, skipped');
+          continue;
+        }
+        await channel.sendMedia?.(chatJid, item.type, hostPath, item.caption);
+        outputSentToUser = true;
+      }
+
       if (text) {
         await channel.sendMessage(chatJid, text);
         outputSentToUser = true;

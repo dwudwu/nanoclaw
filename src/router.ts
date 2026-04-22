@@ -31,6 +31,35 @@ export function formatMessages(
   return `${header}<messages>\n${lines.join('\n')}\n</messages>`;
 }
 
+export interface MediaItem {
+  type: 'image' | 'video' | 'audio';
+  path: string;
+  caption?: string;
+}
+
+/**
+ * Extract <send_media> tags from agent output.
+ * Returns the cleaned text (tags removed) and the list of media items.
+ * Tag format: <send_media type="image|video|audio" path="/workspace/group/..." caption="optional" />
+ */
+export function extractMediaTags(text: string): { text: string; media: MediaItem[] } {
+  const media: MediaItem[] = [];
+  const cleaned = text
+    .replace(/<send_media\s+([^>]*?)\/>/g, (_, attrs) => {
+      const typeMatch = attrs.match(/type="([^"]+)"/);
+      const pathMatch = attrs.match(/path="([^"]+)"/);
+      const captionMatch = attrs.match(/caption="([^"]*)"/);
+      const type = typeMatch?.[1];
+      const filePath = pathMatch?.[1];
+      if (filePath && (type === 'image' || type === 'video' || type === 'audio')) {
+        media.push({ type, path: filePath, caption: captionMatch?.[1] });
+      }
+      return '';
+    })
+    .trim();
+  return { text: cleaned, media };
+}
+
 export function stripInternalTags(text: string): string {
   return text.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
 }

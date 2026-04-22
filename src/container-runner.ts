@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 
 import {
+  CLAUDE_CODE_OAUTH_TOKEN,
   CONTAINER_IMAGE,
   CONTAINER_MAX_OUTPUT_SIZE,
   CONTAINER_TIMEOUT,
@@ -268,6 +269,17 @@ async function buildContainerArgs(
       { containerName },
       'OneCLI gateway not reachable — container will have no credentials',
     );
+  }
+
+  // If a Claude subscription OAuth token is configured, inject it directly.
+  // OneCLI sets ANTHROPIC_API_KEY=placeholder (for proxy interception), but
+  // Claude Code validates the key format locally before making requests, so
+  // the placeholder fails. OAuth token auth bypasses this check entirely.
+  if (CLAUDE_CODE_OAUTH_TOKEN) {
+    args.push('-e', `CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}`);
+    // Remove OneCLI's placeholder so Claude Code uses OAuth instead of API key auth
+    args.push('-e', 'ANTHROPIC_API_KEY=');
+    logger.info({ containerName }, 'Claude OAuth token injected');
   }
 
   // Runtime-specific args for host gateway resolution

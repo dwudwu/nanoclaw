@@ -210,6 +210,12 @@ export async function run(args: string[]): Promise<void> {
     } else {
       await handlePairingCode(projectRoot, statusFile, phone);
     }
+    // Wait for auth process to exit naturally so Baileys can finish saving
+    // registered=true and other creds before we kill it.
+    await new Promise<void>((resolve) => {
+      authProc.once('exit', resolve);
+      setTimeout(resolve, 5000);
+    });
   } finally {
     cleanup();
     process.removeListener('exit', cleanup);
