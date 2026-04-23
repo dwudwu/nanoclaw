@@ -49,7 +49,12 @@ import {
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
-import { extractMediaTags, findChannel, formatMessages, formatOutbound } from './router.js';
+import {
+  extractMediaTags,
+  findChannel,
+  formatMessages,
+  formatOutbound,
+} from './router.js';
 import {
   restoreRemoteControl,
   startRemoteControl,
@@ -286,50 +291,67 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   let outputSentToUser = false;
 
   const groupDir = resolveGroupFolderPath(group.folder);
-  const output = await runAgent(group, prompt, chatJid, imageAttachments, async (result) => {
-    // Streaming output callback — called for each agent result
-    if (result.result) {
-      const raw =
-        typeof result.result === 'string'
-          ? result.result
-          : JSON.stringify(result.result);
-      // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
-      const stripped = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
-      logger.info({ group: group.name }, `Agent output: ${raw.length} chars`);
+  const output = await runAgent(
+    group,
+    prompt,
+    chatJid,
+    imageAttachments,
+    async (result) => {
+      // Streaming output callback — called for each agent result
+      if (result.result) {
+        const raw =
+          typeof result.result === 'string'
+            ? result.result
+            : JSON.stringify(result.result);
+        // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
+        const stripped = raw
+          .replace(/<internal>[\s\S]*?<\/internal>/g, '')
+          .trim();
+        logger.info({ group: group.name }, `Agent output: ${raw.length} chars`);
 
-      // Extract and send media files referenced by the agent
-      const { text, media } = extractMediaTags(stripped);
-      for (const item of media) {
-        // Only allow paths inside the group's writable workspace
-        if (!item.path.startsWith('/workspace/group/')) {
-          logger.warn({ path: item.path }, 'send_media: path outside /workspace/group/, skipped');
-          continue;
+        // Extract and send media files referenced by the agent
+        const { text, media } = extractMediaTags(stripped);
+        for (const item of media) {
+          // Only allow paths inside the group's writable workspace
+          if (!item.path.startsWith('/workspace/group/')) {
+            logger.warn(
+              { path: item.path },
+              'send_media: path outside /workspace/group/, skipped',
+            );
+            continue;
+          }
+          const hostPath = path.join(
+            groupDir,
+            item.path.slice('/workspace/group/'.length),
+          );
+          if (!fs.existsSync(hostPath)) {
+            logger.warn(
+              { hostPath },
+              'send_media: file not found on host, skipped',
+            );
+            continue;
+          }
+          await channel.sendMedia?.(chatJid, item.type, hostPath, item.caption);
+          outputSentToUser = true;
         }
-        const hostPath = path.join(groupDir, item.path.slice('/workspace/group/'.length));
-        if (!fs.existsSync(hostPath)) {
-          logger.warn({ hostPath }, 'send_media: file not found on host, skipped');
-          continue;
+
+        if (text) {
+          await channel.sendMessage(chatJid, text);
+          outputSentToUser = true;
         }
-        await channel.sendMedia?.(chatJid, item.type, hostPath, item.caption);
-        outputSentToUser = true;
+        // Only reset idle timer on actual results, not session-update markers (result: null)
+        resetIdleTimer();
       }
 
-      if (text) {
-        await channel.sendMessage(chatJid, text);
-        outputSentToUser = true;
+      if (result.status === 'success') {
+        queue.notifyIdle(chatJid);
       }
-      // Only reset idle timer on actual results, not session-update markers (result: null)
-      resetIdleTimer();
-    }
 
-    if (result.status === 'success') {
-      queue.notifyIdle(chatJid);
-    }
-
-    if (result.status === 'error') {
-      hadError = true;
-    }
-  });
+      if (result.status === 'error') {
+        hadError = true;
+      }
+    },
+  );
 
   await channel.setTyping?.(chatJid, false);
   if (idleTimer) clearTimeout(idleTimer);

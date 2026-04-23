@@ -42,7 +42,10 @@ export interface MediaItem {
  * Returns the cleaned text (tags removed) and the list of media items.
  * Tag format: <send_media type="image|video|audio" path="/workspace/group/..." caption="optional" />
  */
-export function extractMediaTags(text: string): { text: string; media: MediaItem[] } {
+export function extractMediaTags(text: string): {
+  text: string;
+  media: MediaItem[];
+} {
   const media: MediaItem[] = [];
   const cleaned = text
     .replace(/<send_media\s+([^>]*?)\/>/g, (_, attrs) => {
@@ -51,7 +54,10 @@ export function extractMediaTags(text: string): { text: string; media: MediaItem
       const captionMatch = attrs.match(/caption="([^"]*)"/);
       const type = typeMatch?.[1];
       const filePath = pathMatch?.[1];
-      if (filePath && (type === 'image' || type === 'video' || type === 'audio')) {
+      if (
+        filePath &&
+        (type === 'image' || type === 'video' || type === 'audio')
+      ) {
         media.push({ type, path: filePath, caption: captionMatch?.[1] });
       }
       return '';

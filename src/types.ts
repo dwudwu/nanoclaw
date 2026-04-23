@@ -96,7 +96,12 @@ export interface Channel {
   // Optional: sync group/chat names from the platform.
   syncGroups?(force: boolean): Promise<void>;
   // Optional: send image, video, or audio file. path is an absolute host path.
-  sendMedia?(jid: string, type: 'image' | 'video' | 'audio', filePath: string, caption?: string): Promise<void>;
+  sendMedia?(
+    jid: string,
+    type: 'image' | 'video' | 'audio',
+    filePath: string,
+    caption?: string,
+  ): Promise<void>;
 }
 
 // Callback type that channels use to deliver inbound messages
