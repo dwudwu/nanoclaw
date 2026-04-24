@@ -532,11 +532,14 @@ registerChannelAdapter('whatsapp', {
             const senderName = msg.pushName || sender.split('@')[0];
             const fromMe = msg.key.fromMe || false;
             // Filter bot's own messages to prevent echo loops.
-            // fromMe is always true for messages sent from this linked device,
-            // regardless of ASSISTANT_HAS_OWN_NUMBER mode.
-            if (fromMe) continue;
+            // With a dedicated number (ASSISTANT_HAS_OWN_NUMBER=true), fromMe
+            // reliably identifies bot messages — drop them.
+            // With a shared/personal number, the user's own messages also have
+            // fromMe=true (same WhatsApp account), so we must not drop them;
+            // bot messages are identified by the name prefix instead.
+            if (fromMe && ASSISTANT_HAS_OWN_NUMBER) continue;
 
-            const isBotMessage = ASSISTANT_HAS_OWN_NUMBER ? false : content.startsWith(`${ASSISTANT_NAME}:`);
+            const isBotMessage = ASSISTANT_HAS_OWN_NUMBER ? fromMe : content.startsWith(`${ASSISTANT_NAME}:`);
 
             // Check if this reply answers a pending question via slash command
             const pending = pendingQuestions.get(chatJid);

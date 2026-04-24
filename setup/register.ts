@@ -112,12 +112,9 @@ export async function run(args: string[]): Promise<void> {
     process.exit(4);
   }
 
-  // Chat SDK adapters prefix platform IDs with the channel type
-  // (e.g. "telegram:123", "discord:guild:channel"). Normalize here so
-  // the stored ID always matches what the adapter sends at runtime.
-  if (!parsed.platformId.startsWith(`${parsed.channel}:`)) {
-    parsed.platformId = `${parsed.channel}:${parsed.platformId}`;
-  }
+  // Native adapters (WhatsApp, iMessage, etc.) send raw platform IDs at
+  // runtime — do NOT prepend the channel type. Chat SDK adapters already
+  // include a prefix themselves when they call onInbound.
 
   log.info('Registering channel', parsed);
 
