@@ -173,13 +173,16 @@ export async function run(args: string[]): Promise<void> {
           requiresTrigger: parsed.requiresTrigger,
         })
       : null;
+    const engagePattern = parsed.requiresTrigger ? (parsed.trigger || '.') : '.';
     createMessagingGroupAgent({
       id: mgaId,
       messaging_group_id: messagingGroup.id,
       agent_group_id: agentGroup.id,
-      trigger_rules: triggerRules,
-      response_scope: 'all',
-      session_mode: parsed.sessionMode,
+      engage_mode: 'pattern',
+      engage_pattern: engagePattern,
+      sender_scope: 'all',
+      ignored_message_policy: 'drop',
+      session_mode: parsed.sessionMode as 'shared' | 'per-thread' | 'agent-shared',
       priority: 0,
       created_at: new Date().toISOString(),
     });

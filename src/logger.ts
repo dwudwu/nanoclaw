@@ -4,10 +4,7 @@ import { log } from './log.js';
 
 type LogData = Record<string, unknown>;
 
-function adaptArgs(
-  msgOrData: string | LogData,
-  msgArg?: string,
-): [string, LogData | undefined] {
+function adaptArgs(msgOrData: string | LogData, msgArg?: string): [string, LogData | undefined] {
   if (typeof msgOrData === 'string') return [msgOrData, undefined];
   return [msgArg ?? '', msgOrData];
 }
