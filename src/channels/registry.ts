@@ -1,11 +1,6 @@
 // v1 channel registry — used by WhatsApp adapter (src/channels/whatsapp.ts).
 // Kept alongside the v2 channel-registry.ts for backward compatibility.
-import {
-  Channel,
-  OnInboundMessage,
-  OnChatMetadata,
-  RegisteredGroup,
-} from '../types.js';
+import { Channel, OnInboundMessage, OnChatMetadata, RegisteredGroup } from '../types.js';
 
 export interface ChannelOpts {
   onMessage: OnInboundMessage;

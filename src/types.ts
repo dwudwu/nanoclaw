@@ -201,3 +201,76 @@ export interface AgentDestination {
   target_id: string;
   created_at: string;
 }
+
+// ── v1 compatibility types (used by WhatsApp adapter and db.ts) ──
+
+export interface AdditionalMount {
+  hostPath: string;
+  containerPath?: string;
+  readonly?: boolean;
+}
+
+export interface ContainerConfig {
+  additionalMounts?: AdditionalMount[];
+  timeout?: number;
+}
+
+export interface RegisteredGroup {
+  name: string;
+  folder: string;
+  trigger: string;
+  added_at: string;
+  containerConfig?: ContainerConfig;
+  requiresTrigger?: boolean;
+  isMain?: boolean;
+}
+
+export interface NewMessage {
+  id: string;
+  chat_jid: string;
+  sender: string;
+  sender_name: string;
+  content: string;
+  timestamp: string;
+  is_from_me?: boolean;
+  is_bot_message?: boolean;
+  thread_id?: string;
+  reply_to_message_id?: string;
+  reply_to_message_content?: string;
+  reply_to_sender_name?: string;
+}
+
+export interface ScheduledTask {
+  id: string;
+  group_folder: string;
+  chat_jid: string;
+  prompt: string;
+  script?: string | null;
+  schedule_type: 'cron' | 'interval' | 'once';
+  schedule_value: string;
+  context_mode: 'group' | 'isolated';
+  next_run: string | null;
+  last_run: string | null;
+  last_result: string | null;
+  status: 'active' | 'paused' | 'completed';
+  created_at: string;
+}
+
+export interface TaskRunLog {
+  task_id: string;
+  run_at: string;
+  duration_ms: number;
+  status: 'success' | 'error';
+  result: string | null;
+  error: string | null;
+}
+
+export type OnInboundMessage = (chatJid: string, message: NewMessage) => void;
+
+export type OnChatMetadata = (
+  chatJid: string,
+  timestamp: string,
+  name?: string,
+  channel?: string,
+  isGroup?: boolean,
+) => void;

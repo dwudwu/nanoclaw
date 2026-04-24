@@ -97,9 +97,7 @@ vi.mock('@whiskeysockets/baileys', () => {
       timedOut: 408,
       restartRequired: 515,
     },
-    fetchLatestWaWebVersion: vi
-      .fn()
-      .mockResolvedValue({ version: [2, 3000, 0] }),
+    fetchLatestWaWebVersion: vi.fn().mockResolvedValue({ version: [2, 3000, 0] }),
     downloadMediaMessage: vi.fn().mockResolvedValue(Buffer.from('image-data')),
     normalizeMessageContent: vi.fn((content: unknown) => content),
     makeCacheableSignalKeyStore: vi.fn((keys: unknown) => keys),
@@ -120,9 +118,7 @@ import { isImageMessage, processImage } from '../image.js';
 
 // --- Test helpers ---
 
-function createTestOpts(
-  overrides?: Partial<WhatsAppChannelOpts>,
-): WhatsAppChannelOpts {
+function createTestOpts(overrides?: Partial<WhatsAppChannelOpts>): WhatsAppChannelOpts {
   return {
     onMessage: vi.fn(),
     onChatMetadata: vi.fn(),
@@ -190,9 +186,7 @@ describe('WhatsAppChannel', () => {
       await connectChannel(channel);
 
       const { makeWASocket } = await import('@whiskeysockets/baileys');
-      expect(makeWASocket).toHaveBeenCalledWith(
-        expect.objectContaining({ markOnlineOnConnect: false }),
-      );
+      expect(makeWASocket).toHaveBeenCalledWith(expect.objectContaining({ markOnlineOnConnect: false }));
     });
   });
 
@@ -204,17 +198,13 @@ describe('WhatsAppChannel', () => {
       const channel = new WhatsAppChannel(opts);
       await connectChannel(channel);
 
-      const { fetchLatestWaWebVersion } =
-        await import('@whiskeysockets/baileys');
+      const { fetchLatestWaWebVersion } = await import('@whiskeysockets/baileys');
       expect(fetchLatestWaWebVersion).toHaveBeenCalledWith({});
     });
 
     it('falls back gracefully when version fetch fails', async () => {
-      const { fetchLatestWaWebVersion } =
-        await import('@whiskeysockets/baileys');
-      vi.mocked(fetchLatestWaWebVersion).mockRejectedValueOnce(
-        new Error('network error'),
-      );
+      const { fetchLatestWaWebVersion } = await import('@whiskeysockets/baileys');
+      vi.mocked(fetchLatestWaWebVersion).mockRejectedValueOnce(new Error('network error'));
 
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
@@ -288,9 +278,7 @@ describe('WhatsAppChannel', () => {
   describe('authentication', () => {
     it('exits process when QR code is emitted (no auth state)', async () => {
       vi.useFakeTimers();
-      const mockExit = vi
-        .spyOn(process, 'exit')
-        .mockImplementation(() => undefined as never);
+      const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
@@ -332,9 +320,7 @@ describe('WhatsAppChannel', () => {
     });
 
     it('exits on loggedOut disconnect', async () => {
-      const mockExit = vi
-        .spyOn(process, 'exit')
-        .mockImplementation(() => undefined as never);
+      const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
@@ -679,11 +665,7 @@ describe('WhatsAppChannel', () => {
         },
       ]);
 
-      expect(processImage).toHaveBeenCalledWith(
-        expect.any(Buffer),
-        expect.any(String),
-        '',
-      );
+      expect(processImage).toHaveBeenCalledWith(expect.any(Buffer), expect.any(String), '');
       expect(opts.onMessage).toHaveBeenCalledWith(
         'registered@g.us',
         expect.objectContaining({
@@ -696,9 +678,7 @@ describe('WhatsAppChannel', () => {
 
     it('handles image download failure gracefully', async () => {
       vi.mocked(isImageMessage).mockReturnValue(true);
-      vi.mocked(downloadMediaMessage).mockRejectedValueOnce(
-        new Error('Download failed'),
-      );
+      vi.mocked(downloadMediaMessage).mockRejectedValueOnce(new Error('Download failed'));
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
 
@@ -899,10 +879,7 @@ describe('WhatsAppChannel', () => {
 
       await channel.sendMessage('123@s.whatsapp.net', 'Hello');
       // Shared number: DMs also get prefixed (needed for self-chat distinction)
-      expect(fakeSocket.sendMessage).toHaveBeenCalledWith(
-        '123@s.whatsapp.net',
-        { text: 'Andy: Hello' },
-      );
+      expect(fakeSocket.sendMessage).toHaveBeenCalledWith('123@s.whatsapp.net', { text: 'Andy: Hello' });
     });
 
     it('queues message when disconnected', async () => {
@@ -983,9 +960,7 @@ describe('WhatsAppChannel', () => {
 
     it('skips sync when synced recently', async () => {
       // Last sync was 1 hour ago (within 24h threshold)
-      vi.mocked(getLastGroupSync).mockReturnValue(
-        new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      );
+      vi.mocked(getLastGroupSync).mockReturnValue(new Date(Date.now() - 60 * 60 * 1000).toISOString());
 
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
@@ -998,9 +973,7 @@ describe('WhatsAppChannel', () => {
     });
 
     it('forces sync regardless of cache', async () => {
-      vi.mocked(getLastGroupSync).mockReturnValue(
-        new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      );
+      vi.mocked(getLastGroupSync).mockReturnValue(new Date(Date.now() - 60 * 60 * 1000).toISOString());
 
       fakeSocket.groupFetchAllParticipating.mockResolvedValue({
         'group@g.us': { subject: 'Forced Group' },
@@ -1018,9 +991,7 @@ describe('WhatsAppChannel', () => {
     });
 
     it('handles group sync failure gracefully', async () => {
-      fakeSocket.groupFetchAllParticipating.mockRejectedValue(
-        new Error('Network timeout'),
-      );
+      fakeSocket.groupFetchAllParticipating.mockRejectedValue(new Error('Network timeout'));
 
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
@@ -1087,10 +1058,7 @@ describe('WhatsAppChannel', () => {
       await connectChannel(channel);
 
       await channel.setTyping('test@g.us', true);
-      expect(fakeSocket.sendPresenceUpdate).toHaveBeenCalledWith(
-        'composing',
-        'test@g.us',
-      );
+      expect(fakeSocket.sendPresenceUpdate).toHaveBeenCalledWith('composing', 'test@g.us');
     });
 
     it('sends paused presence when stopping', async () => {
@@ -1100,10 +1068,7 @@ describe('WhatsAppChannel', () => {
       await connectChannel(channel);
 
       await channel.setTyping('test@g.us', false);
-      expect(fakeSocket.sendPresenceUpdate).toHaveBeenCalledWith(
-        'paused',
-        'test@g.us',
-      );
+      expect(fakeSocket.sendPresenceUpdate).toHaveBeenCalledWith('paused', 'test@g.us');
     });
 
     it('handles typing indicator failure gracefully', async () => {
@@ -1115,9 +1080,7 @@ describe('WhatsAppChannel', () => {
       fakeSocket.sendPresenceUpdate.mockRejectedValueOnce(new Error('Failed'));
 
       // Should not throw
-      await expect(
-        channel.setTyping('test@g.us', true),
-      ).resolves.toBeUndefined();
+      await expect(channel.setTyping('test@g.us', true)).resolves.toBeUndefined();
     });
   });
 
