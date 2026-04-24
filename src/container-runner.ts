@@ -259,6 +259,13 @@ function buildMounts(
   // skill symlinks)
   mounts.push({ hostPath: claudeDir, containerPath: '/home/node/.claude', readonly: false });
 
+  // Claude Code config at /home/node/.claude.json — required for Claude Code CLI
+  // auth inside the container. Shared across all agent groups.
+  const claudeJsonPath = path.join(DATA_DIR, 'claude.json');
+  if (fs.existsSync(claudeJsonPath)) {
+    mounts.push({ hostPath: claudeJsonPath, containerPath: '/home/node/.claude.json', readonly: false });
+  }
+
   // Shared agent-runner source — read-only, same code for all groups.
   const agentRunnerSrc = path.join(projectRoot, 'container', 'agent-runner', 'src');
   mounts.push({ hostPath: agentRunnerSrc, containerPath: '/app/src', readonly: true });
