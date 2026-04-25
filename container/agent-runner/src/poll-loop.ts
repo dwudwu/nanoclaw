@@ -18,6 +18,16 @@ function generateId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function isBotEcho(msg: MessageInRow): boolean {
+  if (msg.kind !== 'chat') return false;
+  try {
+    const content = JSON.parse(msg.content);
+    return content.isBotMessage === true;
+  } catch {
+    return false;
+  }
+}
+
 export interface PollLoopConfig {
   provider: AgentProvider;
   cwd: string;
@@ -53,8 +63,13 @@ export async function runPollLoop(config: PollLoopConfig): Promise<void> {
 
   let pollCount = 0;
   while (true) {
-    // Skip system messages — they're responses for MCP tools (e.g., ask_user_question)
-    const messages = getPendingMessages().filter((m) => m.kind !== 'system');
+    // Skip system messages — they're responses for MCP tools (e.g., ask_user_question).
+    // Also skip bot echoes (e.g. WhatsApp self-chat reflections on shared numbers) and
+    // mark them completed immediately so they don't re-appear on the next poll.
+    const allPending = getPendingMessages();
+    const echoIds = allPending.filter(isBotEcho).map((m) => m.id);
+    if (echoIds.length > 0) markCompleted(echoIds);
+    const messages = allPending.filter((m) => m.kind !== 'system' && !isBotEcho(m));
     pollCount++;
 
     // Periodic heartbeat so we know the loop is alive
