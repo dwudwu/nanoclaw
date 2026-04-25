@@ -4,6 +4,7 @@ import { writeMessageOut } from './db/messages-out.js';
 import { touchHeartbeat, clearStaleProcessingAcks } from './db/connection.js';
 import { getStoredSessionId, setStoredSessionId, clearStoredSessionId } from './db/session-state.js';
 import { formatMessages, extractRouting, categorizeMessage, isClearCommand, stripInternalTags, type RoutingContext } from './formatter.js';
+import { getSessionRouting } from './db/session-routing.js';
 import type { AgentProvider, AgentQuery, ProviderEvent } from './providers/types.js';
 
 const POLL_INTERVAL_MS = 1000;
@@ -82,7 +83,24 @@ export async function runPollLoop(config: PollLoopConfig): Promise<void> {
     const ids = messages.map((m) => m.id);
     markProcessing(ids);
 
-    const routing = extractRouting(messages);
+    let routing = extractRouting(messages);
+
+    // If all messages in the batch are host-generated agent-channel messages
+    // (e.g. a system reply like avail-groups-reply), extractRouting would
+    // return channel_type='agent' — causing replies to loop back to the agent
+    // instead of going to the user's channel. Use session_routing (written by
+    // the host at wake time with the canonical user-facing channel) as fallback.
+    if (!routing.channelType || routing.channelType === 'agent') {
+      const sr = getSessionRouting();
+      if (sr.channel_type && sr.channel_type !== 'agent') {
+        routing = {
+          platformId: sr.platform_id,
+          channelType: sr.channel_type,
+          threadId: sr.thread_id,
+          inReplyTo: routing.inReplyTo,
+        };
+      }
+    }
 
     // Command handling: the host router gates filtered and unauthorized
     // admin commands before they reach the container. The only command
