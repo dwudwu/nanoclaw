@@ -365,11 +365,11 @@ registerChannelAdapter('whatsapp', {
         browser: Browsers.macOS('Chrome'),
         cachedGroupMetadata: async (jid: string) => getNormalizedGroupMetadata(jid),
         getMessage: async (key: WAMessageKey) => {
-          // Check in-memory cache first (recently sent messages)
-          const cached = sentMessageCache.get(key.id || '');
-          if (cached) return cached;
-          // Return empty message to prevent indefinite "waiting for this message"
-          return proto.Message.fromObject({});
+          // Return the cached message so WhatsApp can re-encrypt it for devices
+          // that couldn't decrypt the original (e.g. after a session reset).
+          // Returning undefined (rather than an empty proto) lets WhatsApp trigger
+          // its proper session-recovery flow instead of delivering an undecodable stub.
+          return sentMessageCache.get(key.id || '') ?? undefined;
         },
       });
 
@@ -475,7 +475,21 @@ registerChannelAdapter('whatsapp', {
         }
       });
 
-      sock.ev.on('creds.update', saveCreds);
+      sock.ev.on('creds.update', (update) => {
+        saveCreds();
+        // Baileys delivers lid via creds.update after connection open — set the
+        // mapping here so it's available even if connection.update fires first.
+        const updatedMe = (update as any)?.me ?? sock.user;
+        if (updatedMe?.lid && updatedMe?.id) {
+          const phoneUser = updatedMe.id.split(':')[0];
+          const lidUser = updatedMe.lid.split(':')[0];
+          if (lidUser && phoneUser && !lidToPhoneMap[lidUser]) {
+            setLidPhoneMapping(lidUser, `${phoneUser}@s.whatsapp.net`);
+            botLidUser = lidUser;
+            log.info('LID mapping set from creds.update', { lidUser, phoneUser });
+          }
+        }
+      });
 
       // Phone number sharing events — update LID mapping
       sock.ev.on('chats.phoneNumberShare', ({ lid, jid }) => {
