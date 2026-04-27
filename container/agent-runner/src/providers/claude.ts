@@ -57,9 +57,13 @@ const TOOL_ALLOWLIST = [
   'mcp__nanoclaw__*',
 ];
 
+type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
+
 interface SDKUserMessage {
   type: 'user';
-  message: { role: 'user'; content: string };
+  message: { role: 'user'; content: string | ContentBlock[] };
   parent_tool_use_id: null;
   session_id: string;
 }
@@ -72,10 +76,10 @@ class MessageStream {
   private waiting: (() => void) | null = null;
   private done = false;
 
-  push(text: string): void {
+  push(content: string | ContentBlock[]): void {
     this.queue.push({
       type: 'user',
-      message: { role: 'user', content: text },
+      message: { role: 'user', content },
       parent_tool_use_id: null,
       session_id: '',
     });
@@ -99,6 +103,84 @@ class MessageStream {
       this.waiting = null;
     }
   }
+}
+
+// ── Image attachment handling ──
+
+/**
+ * Parse image attachments from formatted message text.
+ * Looks for patterns like: [image: filename.jpg — saved to /workspace/attachments/filename.jpg]
+ * Returns array of { path, mediaType } for each image found.
+ */
+function extractImagePaths(text: string): Array<{ path: string; mediaType: string }> {
+  const attachmentRegex = /\[image:\s*[^\]]*—\s*saved to\s+([^\]]+)\]/gi;
+  const images: Array<{ path: string; mediaType: string }> = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = attachmentRegex.exec(text)) !== null) {
+    const filePath = match[1].trim();
+    // Infer media type from extension
+    const ext = path.extname(filePath).toLowerCase();
+    const mediaType =
+      ext === '.png' ? 'image/png' :
+      ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+      ext === '.gif' ? 'image/gif' :
+      ext === '.webp' ? 'image/webp' :
+      'image/jpeg'; // default
+    images.push({ path: filePath, mediaType });
+  }
+
+  return images;
+}
+
+/**
+ * Remove attachment annotations from text.
+ * Strips lines like: [image: filename.jpg — saved to /workspace/attachments/filename.jpg]
+ */
+function stripAttachmentAnnotations(text: string): string {
+  return text.replace(/\[(?:image|video|audio|document|file):\s*[^\]]*—\s*saved to\s+[^\]]+\]/gi, '').trim();
+}
+
+/**
+ * Build multimodal content blocks from formatted message text.
+ * If the text contains image attachments, converts them to proper vision blocks.
+ * Otherwise returns the text as-is.
+ */
+function buildContentBlocks(text: string): string | ContentBlock[] {
+  const images = extractImagePaths(text);
+  if (images.length === 0) {
+    return text;
+  }
+
+  const blocks: ContentBlock[] = [];
+
+  // Add text content (with attachment annotations stripped)
+  const cleanText = stripAttachmentAnnotations(text);
+  if (cleanText) {
+    blocks.push({ type: 'text', text: cleanText });
+  }
+
+  // Add image blocks
+  for (const { path: imagePath, mediaType } of images) {
+    try {
+      const buffer = fs.readFileSync(imagePath);
+      const base64Data = buffer.toString('base64');
+      blocks.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: mediaType,
+          data: base64Data,
+        },
+      });
+      log(`Loaded image for vision: ${imagePath} (${mediaType})`);
+    } catch (err) {
+      log(`Failed to load image ${imagePath}: ${err instanceof Error ? err.message : String(err)}`);
+      // Continue without this image
+    }
+  }
+
+  return blocks.length > 0 ? blocks : text;
 }
 
 // ── Transcript archiving (PreCompact hook) ──
@@ -261,7 +343,9 @@ export class ClaudeProvider implements AgentProvider {
 
   query(input: QueryInput): AgentQuery {
     const stream = new MessageStream();
-    stream.push(input.prompt);
+    // Build multimodal content blocks from the prompt (handles image attachments)
+    const content = buildContentBlocks(input.prompt);
+    stream.push(content);
 
     const instructions = input.systemContext?.instructions;
 
