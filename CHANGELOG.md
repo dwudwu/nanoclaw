@@ -4,6 +4,37 @@ All notable changes to NanoClaw will be documented in this file.
 
 For detailed release notes, see the [full changelog on the documentation site](https://docs.nanoclaw.dev/changelog).
 
+## [Unreleased]
+
+### Added - 2026-04-27
+
+- **Comprehensive file attachment processing system.** Claude agents can now understand images (vision), videos (frame extraction), PDFs (text extraction), documents (text reading), and audio files (metadata). Replaces image-only vision support with unified file processor. ([#ef9d7c9](https://github.com/dwudwu/nanoclaw/commit/ef9d7c9))
+  - `file-processor.ts`: Handles 5 file categories with automatic type detection
+  - **Images**: Base64 encoding for Claude vision API (PNG, JPG, GIF, WebP, BMP)
+  - **Videos**: Extracts up to 5 frames via ffmpeg + metadata (MP4, MOV, AVI, MKV, WebM)
+  - **PDFs**: Text extraction via pdftotext or page image conversion for scanned PDFs
+  - **Documents**: Text reading for TXT, MD, CSV, JSON, DOCX, etc.
+  - **Audio**: Metadata extraction (MP3, WAV, OGG, M4A, AAC) - transcription placeholder for future
+  - Token-efficient: Videos capped at 5 frames (~5k tokens), PDFs/docs truncated at 50k chars
+  - Error handling: Graceful degradation when tools missing or files corrupt, never blocks delivery
+
+- **Three new MCP tools for attachment management:**
+  - `mcp__nanoclaw__list_attachments`: List files with type filtering and sorting (by name/size/date)
+  - `mcp__nanoclaw__get_attachment_info`: Inspect file details and optionally retrieve processed content
+  - `mcp__nanoclaw__cleanup_attachments`: Delete old files by age and type (with dry-run preview)
+
+- **Container dependencies:**
+  - `ffmpeg`: Video frame extraction and audio metadata
+  - `poppler-utils`: PDF text extraction (pdftotext, pdftoppm)
+
+- **Documentation:**
+  - `FILE_MANAGEMENT.md`: Complete guide with architecture, usage examples, troubleshooting
+  - `DEPLOYMENT_NOTES.md`: Deployment steps, verification checklist, rollback plan
+
+### Changed - 2026-04-27
+
+- **Claude provider (`providers/claude.ts`)**: Uses file-processor module instead of inline image handling. Supports all file types automatically with cleaner code.
+
 ## [2.0.0] - 2026-04-22
 
 Major version. NanoClaw v2 is a substantial architectural rewrite. Existing forks should run `/migrate-nanoclaw` (clean-base replay of customizations) or `/update-nanoclaw` (selective cherry-pick) before resuming work.
