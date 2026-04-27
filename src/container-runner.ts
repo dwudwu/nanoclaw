@@ -216,6 +216,12 @@ function buildMounts(
   // Session folder at /workspace (contains inbound.db, outbound.db, outbox/, .claude/)
   mounts.push({ hostPath: sessDir, containerPath: '/workspace', readonly: false });
 
+  // Global attachments at /workspace/attachments (RO — host-downloaded media files)
+  const attachDir = path.join(DATA_DIR, 'attachments');
+  if (fs.existsSync(attachDir)) {
+    mounts.push({ hostPath: attachDir, containerPath: '/workspace/attachments', readonly: true });
+  }
+
   // Agent group folder at /workspace/agent (RW for working files + CLAUDE.local.md)
   mounts.push({ hostPath: groupDir, containerPath: '/workspace/agent', readonly: false });
 
