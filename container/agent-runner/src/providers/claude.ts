@@ -1,9 +1,12 @@
-import fs from 'fs';
-import path from 'path';
-
 import { query as sdkQuery, type HookCallback, type PreCompactHookInput } from '@anthropic-ai/claude-agent-sdk';
 
 import { clearContainerToolInFlight, setContainerToolInFlight } from '../db/connection.js';
+import {
+  type ContentBlock,
+  extractAttachmentPaths,
+  processFile,
+  stripAttachmentAnnotations,
+} from '../file-processor.js';
 import { registerProvider } from './provider-registry.js';
 import type { AgentProvider, AgentQuery, McpServerConfig, ProviderEvent, ProviderOptions, QueryInput } from './types.js';
 
@@ -57,10 +60,6 @@ const TOOL_ALLOWLIST = [
   'mcp__nanoclaw__*',
 ];
 
-type ContentBlock =
-  | { type: 'text'; text: string }
-  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
-
 interface SDKUserMessage {
   type: 'user';
   message: { role: 'user'; content: string | ContentBlock[] };
@@ -105,50 +104,16 @@ class MessageStream {
   }
 }
 
-// ── Image attachment handling ──
-
-/**
- * Parse image attachments from formatted message text.
- * Looks for patterns like: [image: filename.jpg — saved to /workspace/attachments/filename.jpg]
- * Returns array of { path, mediaType } for each image found.
- */
-function extractImagePaths(text: string): Array<{ path: string; mediaType: string }> {
-  const attachmentRegex = /\[image:\s*[^\]]*—\s*saved to\s+([^\]]+)\]/gi;
-  const images: Array<{ path: string; mediaType: string }> = [];
-  let match: RegExpExecArray | null;
-
-  while ((match = attachmentRegex.exec(text)) !== null) {
-    const filePath = match[1].trim();
-    // Infer media type from extension
-    const ext = path.extname(filePath).toLowerCase();
-    const mediaType =
-      ext === '.png' ? 'image/png' :
-      ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
-      ext === '.gif' ? 'image/gif' :
-      ext === '.webp' ? 'image/webp' :
-      'image/jpeg'; // default
-    images.push({ path: filePath, mediaType });
-  }
-
-  return images;
-}
-
-/**
- * Remove attachment annotations from text.
- * Strips lines like: [image: filename.jpg — saved to /workspace/attachments/filename.jpg]
- */
-function stripAttachmentAnnotations(text: string): string {
-  return text.replace(/\[(?:image|video|audio|document|file):\s*[^\]]*—\s*saved to\s+[^\]]+\]/gi, '').trim();
-}
+// ── File attachment handling ──
 
 /**
  * Build multimodal content blocks from formatted message text.
- * If the text contains image attachments, converts them to proper vision blocks.
+ * Uses the file processor to handle images, videos, PDFs, documents, etc.
  * Otherwise returns the text as-is.
  */
 function buildContentBlocks(text: string): string | ContentBlock[] {
-  const images = extractImagePaths(text);
-  if (images.length === 0) {
+  const attachmentPaths = extractAttachmentPaths(text);
+  if (attachmentPaths.length === 0) {
     return text;
   }
 
@@ -160,24 +125,16 @@ function buildContentBlocks(text: string): string | ContentBlock[] {
     blocks.push({ type: 'text', text: cleanText });
   }
 
-  // Add image blocks
-  for (const { path: imagePath, mediaType } of images) {
-    try {
-      const buffer = fs.readFileSync(imagePath);
-      const base64Data = buffer.toString('base64');
-      blocks.push({
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: mediaType,
-          data: base64Data,
-        },
-      });
-      log(`Loaded image for vision: ${imagePath} (${mediaType})`);
-    } catch (err) {
-      log(`Failed to load image ${imagePath}: ${err instanceof Error ? err.message : String(err)}`);
-      // Continue without this image
+  // Process each attachment
+  for (const filePath of attachmentPaths) {
+    const result = processFile(filePath);
+
+    if (result.metadata.error) {
+      log(`File processing error: ${result.metadata.error}`);
     }
+
+    // Add all content blocks from the processed file
+    blocks.push(...result.blocks);
   }
 
   return blocks.length > 0 ? blocks : text;

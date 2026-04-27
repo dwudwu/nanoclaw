@@ -11,6 +11,7 @@ import './interactive.js';
 import './agents.js';
 import './self-mod.js';
 import './whatsapp.js';
+import './attachments.js';
 import { startMcpServer } from './server.js';
 
 function log(msg: string): void {
