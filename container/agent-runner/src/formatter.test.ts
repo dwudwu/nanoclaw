@@ -80,8 +80,8 @@ describe('timestamp formatting', () => {
   });
 });
 
-describe('reply_to + quoted_message rendering', () => {
-  it('renders reply_to attribute and quoted_message when all fields present', () => {
+describe('reply_to rendering (no quoted_message body)', () => {
+  it('renders reply_to attribute when reply context present', () => {
     insertMessage('m1', 'chat', {
       sender: 'Alice',
       text: 'Yes, on my way!',
@@ -89,18 +89,18 @@ describe('reply_to + quoted_message rendering', () => {
     });
     const result = formatMessages(getPendingMessages());
     expect(result).toContain('reply_to="42"');
-    expect(result).toContain('<quoted_message from="Bob">Are you coming tonight?</quoted_message>');
+    expect(result).not.toContain('quoted_message');
     expect(result).toContain('Yes, on my way!</message>');
   });
 
-  it('omits reply_to and quoted_message when no reply context', () => {
+  it('omits reply_to when no reply context', () => {
     insertMessage('m1', 'chat', { sender: 'Alice', text: 'plain' });
     const result = formatMessages(getPendingMessages());
     expect(result).not.toContain('reply_to');
     expect(result).not.toContain('quoted_message');
   });
 
-  it('renders reply_to but omits quoted_message when original content is missing', () => {
+  it('renders reply_to but no quoted body when original text is missing', () => {
     insertMessage('m1', 'chat', {
       sender: 'Alice',
       text: 'ack',
@@ -109,18 +109,6 @@ describe('reply_to + quoted_message rendering', () => {
     const result = formatMessages(getPendingMessages());
     expect(result).toContain('reply_to="42"');
     expect(result).not.toContain('quoted_message');
-  });
-
-  it('XML-escapes reply context', () => {
-    insertMessage('m1', 'chat', {
-      sender: 'Alice',
-      text: 'reply',
-      replyTo: { id: '1', sender: 'A & B', text: '<script>alert("xss")</script>' },
-    });
-    const result = formatMessages(getPendingMessages());
-    expect(result).toContain('from="A &amp; B"');
-    expect(result).toContain('&lt;script&gt;');
-    expect(result).toContain('&quot;xss&quot;');
   });
 });
 

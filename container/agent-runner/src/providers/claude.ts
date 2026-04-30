@@ -262,11 +262,7 @@ function createPreCompactHook(assistantName?: string): HookCallback {
 
 // ── Provider ──
 
-/**
- * Claude Code auto-compacts context at this window (tokens). Kept here so
- * the generic bootstrap doesn't need to know about Claude-specific env vars.
- */
-const CLAUDE_CODE_AUTO_COMPACT_WINDOW = '165000';
+import { getConfig } from '../config.js';
 
 /**
  * Stale-session detection. Matches Claude Code's error text when a
@@ -289,7 +285,7 @@ export class ClaudeProvider implements AgentProvider {
     this.additionalDirectories = options.additionalDirectories;
     this.env = {
       ...(options.env ?? {}),
-      CLAUDE_CODE_AUTO_COMPACT_WINDOW,
+      CLAUDE_CODE_AUTO_COMPACT_WINDOW: String(getConfig().compactWindowTokens),
     };
   }
 

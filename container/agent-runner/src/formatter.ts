@@ -193,7 +193,7 @@ function formatWebhookMessage(msg: MessageInRow): string {
   const content = parseContent(msg.content);
   const source = content.source || 'unknown';
   const event = content.event || 'unknown';
-  return `[WEBHOOK: ${source}/${event}]\n\n${JSON.stringify(content.payload || content, null, 2)}`;
+  return `[WEBHOOK: ${source}/${event}]\n\n${JSON.stringify(content.payload || content)}`;
 }
 
 function formatSystemMessage(msg: MessageInRow): string {
@@ -201,22 +201,11 @@ function formatSystemMessage(msg: MessageInRow): string {
   return `[SYSTEM RESPONSE]\n\nAction: ${content.action || 'unknown'}\nStatus: ${content.status || 'unknown'}\nResult: ${JSON.stringify(content.result || null)}`;
 }
 
-/**
- * Render the quoted original inside the <message> body.
- *
- * Matches v1 format (src/v1/router.ts:10-18): `<quoted_message from="X">Y</quoted_message>`.
- * Requires BOTH sender and text — if only id is present the reply_to attribute
- * on the parent <message> carries the link without an inline preview.
- *
- * No truncation here (v1 didn't truncate).
- */
+// Reply context is conveyed by the reply_to attribute on the <message> tag.
+// The original text is already in the agent's conversation history.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatReplyContext(replyTo: any): string {
-  if (!replyTo) return '';
-  const sender = replyTo.sender;
-  const text = replyTo.text;
-  if (!sender || !text) return '';
-  return `\n  <quoted_message from="${escapeXml(sender)}">${escapeXml(text)}</quoted_message>\n`;
+function formatReplyContext(_replyTo: any): string {
+  return '';
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

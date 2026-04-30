@@ -16,9 +16,12 @@ export interface RunnerConfig {
   agentGroupId: string;
   maxMessagesPerPrompt: number;
   mcpServers: Record<string, { command: string; args: string[]; env: Record<string, string> }>;
+  capabilities: string[] | null;
+  compactWindowTokens: number;
 }
 
 const DEFAULT_MAX_MESSAGES = 10;
+const DEFAULT_COMPACT_WINDOW = 120000;
 
 let _config: RunnerConfig | null = null;
 
@@ -43,6 +46,8 @@ export function loadConfig(): RunnerConfig {
     agentGroupId: (raw.agentGroupId as string) || '',
     maxMessagesPerPrompt: (raw.maxMessagesPerPrompt as number) || DEFAULT_MAX_MESSAGES,
     mcpServers: (raw.mcpServers as RunnerConfig['mcpServers']) || {},
+    capabilities: Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : null,
+    compactWindowTokens: (raw.compactWindowTokens as number) || DEFAULT_COMPACT_WINDOW,
   };
 
   return _config;
