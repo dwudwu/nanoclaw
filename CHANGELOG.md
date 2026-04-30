@@ -6,6 +6,14 @@ For detailed release notes, see the [full changelog on the documentation site](h
 
 ## [Unreleased]
 
+### Changed - 2026-04-30
+
+- **Token usage reduction across agent-runner.** Multiple changes to reduce per-turn input token cost:
+  - Removed `<quoted_message>` body duplication from formatted prompts — the `reply_to` ID attribute is sufficient since the original message is already in conversation history
+  - Webhook payloads now use compact JSON (no pretty-printing whitespace)
+  - MCP tool loading is now conditional: add `"capabilities"` array to `container.json` to load only the tool modules an agent needs (e.g. `["scheduling", "interactive"]`). Omitting the field loads all tools (backward compatible)
+  - Default compaction window lowered from 165K to 120K tokens; configurable per agent group via `"compactWindowTokens"` in `container.json`
+
 ### Added - 2026-04-27
 
 - **Comprehensive file attachment processing system.** Claude agents can now understand images (vision), videos (frame extraction), PDFs (text extraction), documents (text reading), and audio files (metadata). Replaces image-only vision support with unified file processor. ([#ef9d7c9](https://github.com/dwudwu/nanoclaw/commit/ef9d7c9))
