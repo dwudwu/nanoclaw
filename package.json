@@ -24,6 +24,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@chat-adapter/discord": "4.26.0",
     "@chat-adapter/teams": "4.26.0",
     "chat-adapter-imessage": "0.1.1",
     "@clack/core": "^1.2.0",

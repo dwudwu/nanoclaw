@@ -16,3 +16,6 @@ import './teams.js';
 
 // imessage
 import './imessage.js';
+
+// discord
+import './discord.js';
