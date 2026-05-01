@@ -25,9 +25,21 @@ export function openInboundDb(dbPath: string): Database.Database {
   return db;
 }
 
-/** Open the outbound DB for a session (host reads only). */
+/**
+ * Open the outbound DB for a session (host reads only).
+ *
+ * Opened read-write despite being logically read-only: SQLite cannot
+ * recover a hot journal in readonly mode, so when the container crashes
+ * mid-write (or the host polls while a write is being committed) the
+ * leftover journal causes "attempt to write a readonly database" on
+ * every subsequent read until the journal is manually removed. Opening
+ * read-write lets SQLite transparently replay the journal on open.
+ * The "one writer per file" invariant is maintained by convention — the
+ * host never issues INSERT/UPDATE/DELETE against outbound.db.
+ */
 export function openOutboundDb(dbPath: string): Database.Database {
-  const db = new Database(dbPath, { readonly: true });
+  const db = new Database(dbPath);
+  db.pragma('journal_mode = DELETE');
   db.pragma('busy_timeout = 5000');
   return db;
 }
