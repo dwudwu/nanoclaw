@@ -50,7 +50,7 @@ export function loadConfig(): RunnerConfig {
     mcpServers: (raw.mcpServers as RunnerConfig['mcpServers']) || {},
     capabilities: Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : null,
     compactWindowTokens: (raw.compactWindowTokens as number) || DEFAULT_COMPACT_WINDOW,
-    clearBeforeTask: raw.clearBeforeTask === true,
+    clearBeforeTask: raw.clearBeforeTask !== false,
     allowedTools: Array.isArray(raw.allowedTools) ? (raw.allowedTools as string[]) : null,
   };
 
