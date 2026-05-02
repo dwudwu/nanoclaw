@@ -47,6 +47,8 @@ export interface ContainerConfig {
   agentGroupId?: string;
   /** Max messages per prompt. Falls back to code default if unset. */
   maxMessagesPerPrompt?: number;
+  /** Which MCP tool modules to enable. Null = all (default). */
+  capabilities: string[] | null;
 }
 
 function emptyConfig(): ContainerConfig {
@@ -55,6 +57,7 @@ function emptyConfig(): ContainerConfig {
     packages: { apt: [], npm: [] },
     additionalMounts: [],
     skills: 'all',
+    capabilities: null,
   };
 }
 
@@ -87,6 +90,7 @@ export function readContainerConfig(folder: string): ContainerConfig {
       assistantName: raw.assistantName,
       agentGroupId: raw.agentGroupId,
       maxMessagesPerPrompt: raw.maxMessagesPerPrompt,
+      capabilities: Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : null,
     };
   } catch (err) {
     console.error(`[container-config] failed to parse ${p}: ${String(err)}`);

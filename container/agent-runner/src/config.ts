@@ -18,6 +18,8 @@ export interface RunnerConfig {
   mcpServers: Record<string, { command: string; args: string[]; env: Record<string, string> }>;
   capabilities: string[] | null;
   compactWindowTokens: number;
+  clearBeforeTask: boolean;
+  allowedTools: string[] | null;
 }
 
 const DEFAULT_MAX_MESSAGES = 10;
@@ -48,6 +50,8 @@ export function loadConfig(): RunnerConfig {
     mcpServers: (raw.mcpServers as RunnerConfig['mcpServers']) || {},
     capabilities: Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : null,
     compactWindowTokens: (raw.compactWindowTokens as number) || DEFAULT_COMPACT_WINDOW,
+    clearBeforeTask: raw.clearBeforeTask === true,
+    allowedTools: Array.isArray(raw.allowedTools) ? (raw.allowedTools as string[]) : null,
   };
 
   return _config;

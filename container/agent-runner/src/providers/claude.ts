@@ -37,8 +37,10 @@ const SDK_DISALLOWED_TOOLS = [
   'ExitWorktree',
 ];
 
-// Tool allowlist for NanoClaw agent containers
-const TOOL_ALLOWLIST = [
+// Default tool allowlist for NanoClaw agent containers. Per-group overrides
+// can be set via `allowedTools` in container.json — the override replaces
+// this list entirely (mcp__nanoclaw__* is always appended).
+const DEFAULT_TOOL_ALLOWLIST = [
   'Bash',
   'Read',
   'Write',
@@ -57,7 +59,6 @@ const TOOL_ALLOWLIST = [
   'ToolSearch',
   'Skill',
   'NotebookEdit',
-  'mcp__nanoclaw__*',
 ];
 
 interface SDKUserMessage {
@@ -302,6 +303,12 @@ export class ClaudeProvider implements AgentProvider {
 
     const instructions = input.systemContext?.instructions;
 
+    const configAllowedTools = getConfig().allowedTools;
+    const allowedTools = [
+      ...(configAllowedTools ?? DEFAULT_TOOL_ALLOWLIST),
+      'mcp__nanoclaw__*',
+    ];
+
     const sdkResult = sdkQuery({
       prompt: stream,
       options: {
@@ -310,7 +317,7 @@ export class ClaudeProvider implements AgentProvider {
         resume: input.continuation,
         pathToClaudeCodeExecutable: '/pnpm/claude',
         systemPrompt: instructions ? { type: 'preset' as const, preset: 'claude_code' as const, append: instructions } : undefined,
-        allowedTools: TOOL_ALLOWLIST,
+        allowedTools: allowedTools,
         disallowedTools: SDK_DISALLOWED_TOOLS,
         env: this.env,
         permissionMode: 'bypassPermissions',

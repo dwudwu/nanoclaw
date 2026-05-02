@@ -9,6 +9,7 @@ import {
 } from './db/session-state.js';
 import { formatMessages, extractRouting, categorizeMessage, isClearCommand, stripInternalTags, type RoutingContext } from './formatter.js';
 import { getSessionRouting } from './db/session-routing.js';
+import { getConfig } from './config.js';
 import type { AgentProvider, AgentQuery, ProviderEvent } from './providers/types.js';
 
 const POLL_INTERVAL_MS = 1000;
@@ -191,6 +192,17 @@ export async function runPollLoop(config: PollLoopConfig): Promise<void> {
     // Format messages: passthrough commands get raw text (only if the
     // provider natively handles slash commands), others get XML.
     const prompt = formatMessagesWithCommands(keep, config.provider.supportsNativeSlashCommands);
+
+    // Pre-task clear: if the batch contains scheduled tasks, reset the
+    // session so the agent starts with a clean context. Cross-day history
+    // lives in files (/workspace/agent/), not the transcript. This avoids
+    // paying for compaction and prevents stale history replay.
+    // See docs/token-optimization-design.md.
+    if (keep.some((m) => m.kind === 'task') && getConfig().clearBeforeTask && continuation) {
+      log('Pre-task clear: resetting session for fresh context');
+      continuation = undefined;
+      clearContinuation(config.providerName);
+    }
 
     log(`Processing ${keep.length} message(s), kinds: ${[...new Set(keep.map((m) => m.kind))].join(',')}`);
 
