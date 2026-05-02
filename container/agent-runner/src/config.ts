@@ -23,7 +23,20 @@ export interface RunnerConfig {
 }
 
 const DEFAULT_MAX_MESSAGES = 10;
-const DEFAULT_COMPACT_WINDOW = 120000;
+const DEFAULT_COMPACT_WINDOW = 100000;
+const DEFAULT_CAPABILITIES = ['scheduling'];
+const DEFAULT_ALLOWED_TOOLS = [
+  'Bash',
+  'Read',
+  'Write',
+  'Edit',
+  'Glob',
+  'Grep',
+  'WebSearch',
+  'WebFetch',
+  'ToolSearch',
+  'Skill',
+];
 
 let _config: RunnerConfig | null = null;
 
@@ -48,10 +61,10 @@ export function loadConfig(): RunnerConfig {
     agentGroupId: (raw.agentGroupId as string) || '',
     maxMessagesPerPrompt: (raw.maxMessagesPerPrompt as number) || DEFAULT_MAX_MESSAGES,
     mcpServers: (raw.mcpServers as RunnerConfig['mcpServers']) || {},
-    capabilities: Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : null,
+    capabilities: Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : DEFAULT_CAPABILITIES,
     compactWindowTokens: (raw.compactWindowTokens as number) || DEFAULT_COMPACT_WINDOW,
     clearBeforeTask: raw.clearBeforeTask !== false,
-    allowedTools: Array.isArray(raw.allowedTools) ? (raw.allowedTools as string[]) : null,
+    allowedTools: Array.isArray(raw.allowedTools) ? (raw.allowedTools as string[]) : DEFAULT_ALLOWED_TOOLS,
   };
 
   return _config;
