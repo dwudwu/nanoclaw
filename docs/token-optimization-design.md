@@ -58,7 +58,7 @@ This replaces the earlier post-task compaction design. Compaction paid ~95k toke
 ### Where to change
 
 1. **`container/agent-runner/src/poll-loop.ts`** — before `provider.query()`, detect if the batch contains task messages and clear the continuation.
-2. **`container/agent-runner/src/config.ts`** — `clearBeforeTask: boolean` in `RunnerConfig`, defaulting to `false` (opt-in via `"clearBeforeTask": true` in container.json).
+2. **`container/agent-runner/src/config.ts`** — `clearBeforeTask: boolean` in `RunnerConfig`, defaulting to `true`. Opt out with `"clearBeforeTask": false` in container.json.
 3. **Agent CLAUDE.md instructions** — must tell the agent to write complete results to dated files (`/workspace/agent/news/YYYY-MM-DD.md`) and read yesterday's file for comparison.
 
 ### How it saves
