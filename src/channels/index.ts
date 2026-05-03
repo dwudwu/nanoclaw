@@ -11,11 +11,3 @@ import './cli.js';
 // whatsapp
 import './whatsapp.js';
 
-// teams
-import './teams.js';
-
-// imessage
-import './imessage.js';
-
-// discord
-import './discord.js';
