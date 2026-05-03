@@ -126,7 +126,7 @@ async function pollActive(): Promise<void> {
     const sessions = getRunningSessions();
     const now = Date.now();
     if (sessions.length > 0 && now - _lastActiveLogAt > 60_000) {
-      log.debug('pollActive: running sessions', { count: sessions.length, ids: sessions.map((s) => s.id) });
+      log.info('pollActive: running sessions', { count: sessions.length, ids: sessions.map((s) => s.id) });
       _lastActiveLogAt = now;
     }
     for (const session of sessions) {
@@ -156,7 +156,7 @@ async function pollSweep(): Promise<void> {
 
 export async function deliverSessionMessages(session: Session): Promise<void> {
   if (inflightDeliveries.has(session.id)) {
-    log.debug('drainSession: skipped (inflight)', { sessionId: session.id });
+    log.info('drainSession: skipped (inflight)', { sessionId: session.id });
     return;
   }
   inflightDeliveries.add(session.id);
