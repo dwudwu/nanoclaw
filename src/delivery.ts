@@ -118,11 +118,17 @@ export function startSweepDeliveryPoll(): void {
   pollSweep();
 }
 
+let _lastActiveLogAt = 0;
 async function pollActive(): Promise<void> {
   if (!activePolling) return;
 
   try {
     const sessions = getRunningSessions();
+    const now = Date.now();
+    if (sessions.length > 0 && now - _lastActiveLogAt > 60_000) {
+      log.debug('pollActive: running sessions', { count: sessions.length, ids: sessions.map((s) => s.id) });
+      _lastActiveLogAt = now;
+    }
     for (const session of sessions) {
       await deliverSessionMessages(session);
     }
@@ -149,9 +155,10 @@ async function pollSweep(): Promise<void> {
 }
 
 export async function deliverSessionMessages(session: Session): Promise<void> {
-  // Reject re-entry from a concurrent poll on the same session — see the
-  // comment on inflightDeliveries above.
-  if (inflightDeliveries.has(session.id)) return;
+  if (inflightDeliveries.has(session.id)) {
+    log.debug('drainSession: skipped (inflight)', { sessionId: session.id });
+    return;
+  }
   inflightDeliveries.add(session.id);
 
   try {
@@ -163,15 +170,19 @@ export async function deliverSessionMessages(session: Session): Promise<void> {
 
 async function drainSession(session: Session): Promise<void> {
   const agentGroup = getAgentGroup(session.agent_group_id);
-  if (!agentGroup) return;
+  if (!agentGroup) {
+    log.warn('drainSession: agent group not found', { agentGroupId: session.agent_group_id });
+    return;
+  }
 
   let outDb: Database.Database;
   let inDb: Database.Database;
   try {
     outDb = openOutboundDb(agentGroup.id, session.id);
     inDb = openInboundDb(agentGroup.id, session.id);
-  } catch {
-    return; // DBs might not exist yet
+  } catch (err) {
+    log.warn('drainSession: failed to open session DBs', { sessionId: session.id, err });
+    return;
   }
 
   try {
