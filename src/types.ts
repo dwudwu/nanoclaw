@@ -202,6 +202,24 @@ export interface AgentDestination {
   created_at: string;
 }
 
+// ── Memos ──
+
+export interface Memo {
+  id: string;
+  agent_group_id: string;
+  title: string;
+  content: string;
+  tags: string | null;
+  source_context: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MemoSearchResult extends Memo {
+  rank: number;
+  snippet: string;
+}
+
 // ── v1 compatibility types (used by WhatsApp adapter and db.ts) ──
 
 export interface AdditionalMount {
