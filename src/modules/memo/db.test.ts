@@ -190,3 +190,42 @@ describe('tenant isolation', () => {
     expect(listMemos('ag-2')).toHaveLength(1);
   });
 });
+
+describe('global memos (agent_group_id = null)', () => {
+  it('global memo visible to all groups via getMemo', () => {
+    const memo = makeMemo({ id: 'global-1', agent_group_id: null });
+    insertMemo(memo);
+    expect(getMemo('global-1', 'ag-1')).toBeDefined();
+    expect(getMemo('global-1', 'ag-2')).toBeDefined();
+  });
+
+  it('global memo appears in searchMemos for any group', () => {
+    insertMemo(makeMemo({ agent_group_id: null, content: 'global keyword mango' }));
+    expect(searchMemos('ag-1', 'mango')).toHaveLength(1);
+    expect(searchMemos('ag-2', 'mango')).toHaveLength(1);
+  });
+
+  it('global memo appears in listMemos for any group', () => {
+    insertMemo(makeMemo({ agent_group_id: null }));
+    expect(listMemos('ag-1')).toHaveLength(1);
+    expect(listMemos('ag-2')).toHaveLength(1);
+  });
+
+  it('global memo can be updated from any group', () => {
+    insertMemo(makeMemo({ id: 'global-2', agent_group_id: null, title: 'Old' }));
+    expect(updateMemo('global-2', 'ag-1', { title: 'New' })).toBe(true);
+    expect(getMemo('global-2', 'ag-2')!.title).toBe('New');
+  });
+
+  it('global memo can be deleted from any group', () => {
+    insertMemo(makeMemo({ id: 'global-3', agent_group_id: null }));
+    expect(deleteMemo('global-3', 'ag-1')).toBe(true);
+    expect(getMemo('global-3', 'ag-2')).toBeUndefined();
+  });
+
+  it('scoped memo still invisible to other groups', () => {
+    insertMemo(makeMemo({ agent_group_id: 'ag-1', content: 'secret keyword papaya' }));
+    expect(searchMemos('ag-1', 'papaya')).toHaveLength(1);
+    expect(searchMemos('ag-2', 'papaya')).toHaveLength(0);
+  });
+});

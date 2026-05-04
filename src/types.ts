@@ -206,7 +206,7 @@ export interface AgentDestination {
 
 export interface Memo {
   id: string;
-  agent_group_id: string;
+  agent_group_id: string | null;
   title: string;
   content: string;
   tags: string | null;

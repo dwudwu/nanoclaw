@@ -12,7 +12,7 @@ export function insertMemo(memo: Memo): void {
 
 export function getMemo(id: string, agentGroupId: string): Memo | undefined {
   return getDb()
-    .prepare('SELECT * FROM memos WHERE id = ? AND agent_group_id = ?')
+    .prepare('SELECT * FROM memos WHERE id = ? AND (agent_group_id = ? OR agent_group_id IS NULL)')
     .get(id, agentGroupId) as Memo | undefined;
 }
 
@@ -36,14 +36,14 @@ export function updateMemo(
   values.updated_at = new Date().toISOString();
 
   const result = getDb()
-    .prepare(`UPDATE memos SET ${fields.join(', ')} WHERE id = @id AND agent_group_id = @agent_group_id`)
+    .prepare(`UPDATE memos SET ${fields.join(', ')} WHERE id = @id AND (agent_group_id = @agent_group_id OR agent_group_id IS NULL)`)
     .run(values);
   return result.changes > 0;
 }
 
 export function deleteMemo(id: string, agentGroupId: string): boolean {
   const result = getDb()
-    .prepare('DELETE FROM memos WHERE id = ? AND agent_group_id = ?')
+    .prepare('DELETE FROM memos WHERE id = ? AND (agent_group_id = ? OR agent_group_id IS NULL)')
     .run(id, agentGroupId);
   return result.changes > 0;
 }
@@ -69,7 +69,7 @@ export function searchMemos(agentGroupId: string, query: string, limit = 5): Mem
                 snippet(memos_fts, 1, '<b>', '</b>', '...', 32) AS snippet
          FROM memos m
          JOIN memos_fts ON memos_fts.rowid = m.rowid
-         WHERE memos_fts MATCH ? AND m.agent_group_id = ?
+         WHERE memos_fts MATCH ? AND (m.agent_group_id = ? OR m.agent_group_id IS NULL)
          ORDER BY rank
          LIMIT ?`,
       )
@@ -79,7 +79,8 @@ export function searchMemos(agentGroupId: string, query: string, limit = 5): Mem
     return getDb()
       .prepare(
         `SELECT *, 0 AS rank, '' AS snippet FROM memos
-         WHERE agent_group_id = ? AND (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+         WHERE (agent_group_id = ? OR agent_group_id IS NULL)
+           AND (title LIKE ? OR content LIKE ? OR tags LIKE ?)
          ORDER BY updated_at DESC
          LIMIT ?`,
       )
@@ -98,7 +99,7 @@ export function listMemos(
     return getDb()
       .prepare(
         `SELECT * FROM memos
-         WHERE agent_group_id = ? AND (',' || tags || ',') LIKE ?
+         WHERE (agent_group_id = ? OR agent_group_id IS NULL) AND (',' || tags || ',') LIKE ?
          ORDER BY updated_at DESC
          LIMIT ? OFFSET ?`,
       )
@@ -107,7 +108,7 @@ export function listMemos(
 
   return getDb()
     .prepare(
-      `SELECT * FROM memos WHERE agent_group_id = ?
+      `SELECT * FROM memos WHERE agent_group_id = ? OR agent_group_id IS NULL
        ORDER BY updated_at DESC
        LIMIT ? OFFSET ?`,
     )

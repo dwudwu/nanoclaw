@@ -7,7 +7,7 @@ export const moduleMemo: Migration = {
     db.exec(`
       CREATE TABLE memos (
         id              TEXT PRIMARY KEY,
-        agent_group_id  TEXT NOT NULL REFERENCES agent_groups(id) ON DELETE CASCADE,
+        agent_group_id  TEXT REFERENCES agent_groups(id) ON DELETE CASCADE,
         title           TEXT NOT NULL,
         content         TEXT NOT NULL,
         tags            TEXT,
