@@ -1,8 +1,8 @@
-import { getDb } from '../../db/connection.js';
+import { getMemoDb } from '../../db/memo-db.js';
 import type { Memo, MemoSearchResult } from '../../types.js';
 
 export function insertMemo(memo: Memo): void {
-  getDb()
+  getMemoDb()
     .prepare(
       `INSERT INTO memos (id, agent_group_id, title, content, tags, source_context, created_at, updated_at)
        VALUES (@id, @agent_group_id, @title, @content, @tags, @source_context, @created_at, @updated_at)`,
@@ -11,7 +11,7 @@ export function insertMemo(memo: Memo): void {
 }
 
 export function getMemo(id: string, agentGroupId: string): Memo | undefined {
-  return getDb()
+  return getMemoDb()
     .prepare('SELECT * FROM memos WHERE id = ? AND (agent_group_id = ? OR agent_group_id IS NULL)')
     .get(id, agentGroupId) as Memo | undefined;
 }
@@ -35,14 +35,14 @@ export function updateMemo(
   fields.push('updated_at = @updated_at');
   values.updated_at = new Date().toISOString();
 
-  const result = getDb()
+  const result = getMemoDb()
     .prepare(`UPDATE memos SET ${fields.join(', ')} WHERE id = @id AND (agent_group_id = @agent_group_id OR agent_group_id IS NULL)`)
     .run(values);
   return result.changes > 0;
 }
 
 export function deleteMemo(id: string, agentGroupId: string): boolean {
-  const result = getDb()
+  const result = getMemoDb()
     .prepare('DELETE FROM memos WHERE id = ? AND (agent_group_id = ? OR agent_group_id IS NULL)')
     .run(id, agentGroupId);
   return result.changes > 0;
@@ -63,7 +63,7 @@ export function searchMemos(agentGroupId: string, query: string, limit = 5): Mem
   if (!sanitized) return [];
 
   try {
-    return getDb()
+    return getMemoDb()
       .prepare(
         `SELECT m.*, bm25(memos_fts) AS rank,
                 snippet(memos_fts, 1, '<b>', '</b>', '...', 32) AS snippet
@@ -76,7 +76,7 @@ export function searchMemos(agentGroupId: string, query: string, limit = 5): Mem
       .all(sanitized, agentGroupId, limit) as MemoSearchResult[];
   } catch {
     const pattern = `%${query}%`;
-    return getDb()
+    return getMemoDb()
       .prepare(
         `SELECT *, 0 AS rank, '' AS snippet FROM memos
          WHERE (agent_group_id = ? OR agent_group_id IS NULL)
@@ -96,7 +96,7 @@ export function listMemos(
   const offset = opts?.offset ?? 0;
 
   if (opts?.tag) {
-    return getDb()
+    return getMemoDb()
       .prepare(
         `SELECT * FROM memos
          WHERE (agent_group_id = ? OR agent_group_id IS NULL) AND (',' || tags || ',') LIKE ?
@@ -106,7 +106,7 @@ export function listMemos(
       .all(agentGroupId, `%,${opts.tag},%`, limit, offset) as Memo[];
   }
 
-  return getDb()
+  return getMemoDb()
     .prepare(
       `SELECT * FROM memos WHERE agent_group_id = ? OR agent_group_id IS NULL
        ORDER BY updated_at DESC

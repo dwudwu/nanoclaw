@@ -300,6 +300,12 @@ function buildMounts(
     mounts.push({ hostPath: fragmentsDir, containerPath: '/workspace/agent/.claude-fragments', readonly: true });
   }
 
+  // Memo DB — mounted read-only so the container agent can search/list directly.
+  const memoDbPath = path.join(DATA_DIR, 'memos.db');
+  if (fs.existsSync(memoDbPath)) {
+    mounts.push({ hostPath: memoDbPath, containerPath: '/workspace/memos.db', readonly: true });
+  }
+
   // Global memory directory — always read-only.
   const globalDir = path.join(GROUPS_DIR, 'global');
   if (fs.existsSync(globalDir)) {

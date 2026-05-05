@@ -31,6 +31,9 @@ async function loadTools(): Promise<void> {
   // Core tools always load
   await import('./core.js');
 
+  // Memo tools always load (every agent benefits from persistent memory)
+  await import('./memo.js');
+
   const config = loadConfig();
   const caps = config.capabilities;
 

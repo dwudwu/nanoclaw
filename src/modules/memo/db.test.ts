@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { initTestDb, closeDb, runMigrations, createAgentGroup } from '../../db/index.js';
+import { initTestMemoDb, closeMemoDb } from '../../db/memo-db.js';
 import type { Memo } from '../../types.js';
 import { insertMemo, getMemo, updateMemo, deleteMemo, searchMemos, listMemos } from './db.js';
 
@@ -23,14 +23,11 @@ function makeMemo(overrides: Partial<Memo> = {}): Memo {
 }
 
 beforeEach(() => {
-  const db = initTestDb();
-  runMigrations(db);
-  createAgentGroup({ id: 'ag-1', name: 'Agent 1', folder: 'agent-1', agent_provider: null, created_at: now() });
-  createAgentGroup({ id: 'ag-2', name: 'Agent 2', folder: 'agent-2', agent_provider: null, created_at: now() });
+  initTestMemoDb();
 });
 
 afterEach(() => {
-  closeDb();
+  closeMemoDb();
 });
 
 describe('insertMemo + getMemo', () => {

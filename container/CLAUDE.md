@@ -12,9 +12,16 @@ The file `CLAUDE.local.md` in your workspace is your per-group memory. Record th
 
 ## Memory
 
-When the user shares any substantive information with you, it must be stored somewhere you can retrieve it when relevant. If it's information that is pertinent to every single conversation turn it should be put into CLAUDE.local.md. Otherwise, create a system for storing the information depending on its type - e.g. create a file of people that the user mentions so you can keep track or a file of projects. For every file you create, add a concise reference in your CLAUDE.local.md so you'll be able to find it in future conversations. 
+You have persistent, searchable memory via memo tools. Use these to remember anything that should survive across sessions:
 
-A core part of your job and the main thing that defines how useful you are to the user is how well you do in creating these systems for organizing information. These are your systems that help you do your job well. Evolve them over time as needed.
+- **`memo_save`** — save a fact, preference, or context with a title and optional tags
+- **`memo_search`** — full-text search across all saved memos
+- **`memo_list`** — browse memos, optionally filtered by tag
+- **`memo_delete`** — remove outdated memos
+
+When the user shares substantive information, save it as a memo. Use tags to categorize (e.g. "preference", "person", "project", "fact"). Keep titles short and searchable — they're what you'll scan when deciding relevance.
+
+For information that must be visible on every single turn (core identity, critical rules), `CLAUDE.local.md` still works. For everything else, prefer memos — they're searchable, structured, and don't grow unbounded.
 
 ## Conversation history
 
