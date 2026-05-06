@@ -23,6 +23,7 @@ import {
   createSession,
   findSessionByAgentGroup,
   findSessionForAgent,
+  getActiveSessions,
   getSession,
   updateSession,
 } from './db/sessions.js';
@@ -139,6 +140,37 @@ export function initSessionFolder(agentGroupId: string, sessionId: string): void
 
   ensureSchema(inboundDbPath(agentGroupId, sessionId), 'inbound');
   ensureSchema(outboundDbPath(agentGroupId, sessionId), 'outbound');
+}
+
+/**
+ * Demote a session whose on-disk directory has gone missing. The poll loops
+ * key off `status='active'` and `container_status IN ('running','idle')`, so
+ * flipping both fields removes the row from both pollers and lets the next
+ * inbound for the same messaging group create a fresh session.
+ */
+export function closeOrphanSession(session: Session, context: string): void {
+  updateSession(session.id, { status: 'closed', container_status: 'stopped' });
+  log.warn('Closed orphan session (session dir missing)', {
+    sessionId: session.id,
+    agentGroupId: session.agent_group_id,
+    context,
+  });
+}
+
+/**
+ * Startup reconcile: any active session whose inbound.db is gone is a ghost.
+ * Without this pass, the delivery poll re-discovers it every tick and
+ * `openInboundDb` crashes (or, worse, silently creates an empty
+ * unmigrated DB) — which is exactly the cascade we hit on 2026-05-06.
+ */
+export function reconcileOrphanSessions(): number {
+  let closed = 0;
+  for (const session of getActiveSessions()) {
+    if (fs.existsSync(inboundDbPath(session.agent_group_id, session.id))) continue;
+    closeOrphanSession(session, 'startup-reconcile');
+    closed++;
+  }
+  return closed;
 }
 
 /**

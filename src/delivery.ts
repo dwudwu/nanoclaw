@@ -8,6 +8,7 @@
  *   - Never writes to outbound.db — preserves single-writer-per-file invariant
  */
 import type Database from 'better-sqlite3';
+import fs from 'fs';
 
 import { getRunningSessions, getActiveSessions, createPendingQuestion } from './db/sessions.js';
 import { getAgentGroup } from './db/agent-groups.js';
@@ -22,7 +23,14 @@ import {
 } from './db/session-db.js';
 import { log } from './log.js';
 import { normalizeOptions } from './channels/ask-question.js';
-import { clearOutbox, openInboundDb, openOutboundDb, readOutboxFiles } from './session-manager.js';
+import {
+  clearOutbox,
+  closeOrphanSession,
+  inboundDbPath,
+  openInboundDb,
+  openOutboundDb,
+  readOutboxFiles,
+} from './session-manager.js';
 import { pauseTypingRefreshAfterDelivery, setTypingAdapter } from './modules/typing/index.js';
 import type { OutboundFile } from './channels/adapter.js';
 import type { Session } from './types.js';
@@ -172,6 +180,16 @@ async function drainSession(session: Session): Promise<void> {
   const agentGroup = getAgentGroup(session.agent_group_id);
   if (!agentGroup) {
     log.warn('drainSession: agent group not found', { agentGroupId: session.agent_group_id });
+    return;
+  }
+
+  // Guard against ghost sessions whose directory was deleted out from under
+  // an active row. Without this, openInboundDb either creates an empty
+  // unmigrated DB (→ "no such table: messages_in" cascade) or throws on
+  // missing parent dir (→ "Cannot open database" cascade) at ~1Hz forever.
+  // host-sweep.ts already does this; the delivery path didn't.
+  if (!fs.existsSync(inboundDbPath(agentGroup.id, session.id))) {
+    closeOrphanSession(session, 'drainSession');
     return;
   }
 

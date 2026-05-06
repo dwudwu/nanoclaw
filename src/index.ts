@@ -16,6 +16,7 @@ import { ensureContainerRuntimeRunning, cleanupOrphans } from './container-runti
 import { startActiveDeliveryPoll, startSweepDeliveryPoll, setDeliveryAdapter, stopDeliveryPolls } from './delivery.js';
 import { startHostSweep, stopHostSweep } from './host-sweep.js';
 import { routeInbound } from './router.js';
+import { reconcileOrphanSessions } from './session-manager.js';
 import { log } from './log.js';
 
 // Response + shutdown registries live in response-registry.ts to break the
@@ -74,6 +75,12 @@ async function main(): Promise<void> {
 
   // 1b. One-time filesystem cutover — idempotent, no-op after first run.
   migrateGroupsToClaudeLocal();
+
+  // 1c. Reconcile ghost sessions — any active session whose inbound.db is
+  // gone gets demoted to status='closed' so the delivery polls don't loop on
+  // it forever (cf. 2026-05-06 incident).
+  const orphans = reconcileOrphanSessions();
+  if (orphans > 0) log.info('Closed orphan sessions at startup', { count: orphans });
 
   // 2. Container runtime
   ensureContainerRuntimeRunning();

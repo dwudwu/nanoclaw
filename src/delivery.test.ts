@@ -26,8 +26,16 @@ vi.mock('./config.js', async () => {
 
 const TEST_DIR = '/tmp/nanoclaw-test-delivery';
 
-import { initTestDb, closeDb, runMigrations, createAgentGroup, createMessagingGroup } from './db/index.js';
-import { resolveSession, outboundDbPath } from './session-manager.js';
+import {
+  initTestDb,
+  closeDb,
+  runMigrations,
+  createAgentGroup,
+  createMessagingGroup,
+  getSession,
+  updateSession,
+} from './db/index.js';
+import { resolveSession, outboundDbPath, sessionDir, reconcileOrphanSessions } from './session-manager.js';
 import { deliverSessionMessages, setDeliveryAdapter } from './delivery.js';
 
 function now(): string {
@@ -119,6 +127,55 @@ describe('deliverSessionMessages — concurrent invocations', () => {
     insertOutbound('ag-1', session.id, 'out-second');
     await deliverSessionMessages(session);
     expect(calls).toHaveLength(2);
+  });
+
+  it('closes a ghost session and stops polling when the session directory is gone', async () => {
+    // Reproduces the 2026-05-06 cascade: directory deleted out from under an
+    // active session, delivery poll hammers it at ~1Hz with "Cannot open
+    // database" / "no such table: messages_in" until someone restarts.
+    seedAgentAndChannel();
+    const { session } = resolveSession('ag-1', 'mg-1', null, 'shared');
+    updateSession(session.id, { container_status: 'running' });
+
+    fs.rmSync(sessionDir('ag-1', session.id), { recursive: true, force: true });
+
+    let adapterCalls = 0;
+    setDeliveryAdapter({
+      async deliver() {
+        adapterCalls++;
+        return 'plat-msg-id';
+      },
+    });
+
+    await deliverSessionMessages(session);
+
+    const after = getSession(session.id);
+    expect(after?.status).toBe('closed');
+    expect(after?.container_status).toBe('stopped');
+    expect(adapterCalls).toBe(0);
+  });
+
+  it('reconcileOrphanSessions demotes active sessions with missing directories', () => {
+    seedAgentAndChannel();
+    const { session: live } = resolveSession('ag-1', 'mg-1', null, 'shared');
+
+    createMessagingGroup({
+      id: 'mg-2',
+      channel_type: 'telegram',
+      platform_id: 'telegram:456',
+      name: 'Ghost Chat',
+      is_group: 0,
+      unknown_sender_policy: 'public',
+      created_at: now(),
+    });
+    const { session: ghost } = resolveSession('ag-1', 'mg-2', null, 'shared');
+    fs.rmSync(sessionDir('ag-1', ghost.id), { recursive: true, force: true });
+
+    const closed = reconcileOrphanSessions();
+
+    expect(closed).toBe(1);
+    expect(getSession(ghost.id)?.status).toBe('closed');
+    expect(getSession(live.id)?.status).toBe('active');
   });
 
   it('does not re-deliver when retried after a successful send (cleanup-after-send safety)', async () => {
