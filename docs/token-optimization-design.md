@@ -386,17 +386,17 @@ Pre-task clear saves more than compaction (3,442k vs 3,108k) because it eliminat
 
 | Phase | Levers | Effort | Savings |
 |-------|--------|--------|---------|
-| 0 — Config only (no code) | S1 (capabilities), H2 (compact window) | 5 minutes | ~74k / 7 days |
+| 0 — Config only (no code) | S1 (capabilities), H2 (compact window) | Done (baked defaults) | ~74k / 7 days |
 | 1 — Core implementation | H1 (pre-task clear) | Done | ~3,442k / 7 days |
-| 2 — Script authoring | T1 (pre-task news script) | 2-3 hours | ~440k / 7 days |
+| 2 — Script authoring | T1 (pre-task news script) | Done | ~440k / 7 days |
 | 3 — Code refinements | S2 (trim allowlist), S4 (gate fragments) | Done | ~38k / 7 days |
 
-Phase 0 is zero-code: edit `container.json`, restart the container. Phase 1 and 3 are implemented. Phase 2 is deployment-specific (write the news-fetch script for your sources).
+All phases implemented. T1 ships as a shared script at `container/scripts/news-fetch.sh` (+ `news-fetch-worker.ts`), mounted RO at `/app/scripts/` inside the container. Agent schedules with `script: "bash /app/scripts/news-fetch.sh"` and creates `/workspace/agent/news-sources.json` to configure sources.
 
 ---
 
 ## Open design questions
 
-1. **Script authoring (T1):** Should the news script be per-agent-group (stored in `groups/<folder>/scripts/`) or a shared container skill? Per-group is more flexible; shared is easier to maintain.
+1. ~~**Script authoring (T1):** Should the news script be per-agent-group (stored in `groups/<folder>/scripts/`) or a shared container skill?~~ **Resolved:** shared script at `container/scripts/`, mounted RO at `/app/scripts/`. Per-group configuration via `/workspace/agent/news-sources.json`.
 
 2. **Memo CRUD optimization:** This document focuses on the news-gather use case. Memo operations are inherently cheap (~5-7k per turn) but still pay the full system floor (~20k). A separate design pass could explore whether memo operations can bypass the SDK entirely (direct file I/O without agent involvement) for simple CRUD patterns.

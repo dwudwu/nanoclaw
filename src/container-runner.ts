@@ -340,6 +340,12 @@ function buildMounts(
     mounts.push({ hostPath: skillsSrc, containerPath: '/app/skills', readonly: true });
   }
 
+  // Shared scripts — read-only, available for pre-task script references.
+  const scriptsSrc = path.join(projectRoot, 'container', 'scripts');
+  if (fs.existsSync(scriptsSrc)) {
+    mounts.push({ hostPath: scriptsSrc, containerPath: '/app/scripts', readonly: true });
+  }
+
   // Additional mounts from container config
   if (containerConfig.additionalMounts && containerConfig.additionalMounts.length > 0) {
     const validated = validateAdditionalMounts(containerConfig.additionalMounts, agentGroup.name);

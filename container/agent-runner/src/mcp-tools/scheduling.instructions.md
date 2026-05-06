@@ -26,6 +26,25 @@ bash -c 'node --input-type=module -e "
 "'
 ```
 
+### Pre-built scripts
+
+Shared scripts are available at `/app/scripts/`. Use them by reference instead of inlining:
+
+- **`/app/scripts/news-fetch.sh`** — fetches URLs listed in `/workspace/agent/news-sources.json`, extracts readable text, returns structured content. Saves ~60k tokens per task vs. doing WebSearch + WebFetch yourself. Configure it by creating the sources file:
+
+```json
+{
+  "sources": [
+    { "url": "https://news.ycombinator.com", "label": "Hacker News" },
+    { "url": "https://feeds.bbci.co.uk/news/technology/rss.xml", "label": "BBC Tech" }
+  ],
+  "maxCharsPerSource": 8000,
+  "totalBudget": 30000
+}
+```
+
+To use: `schedule_task` with `script: "bash /app/scripts/news-fetch.sh"`. The script output lands in your prompt as structured JSON — summarize it for the user instead of making your own web searches.
+
 ### When NOT to use scripts
 
 If a task requires your judgment every time (daily briefings, reminders, reports), skip the script — just use a regular prompt. Do not attempt to do things like sentiment analysis or advanced nlp in scripts.
