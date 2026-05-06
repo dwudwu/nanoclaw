@@ -45,9 +45,7 @@ export function initMemoDb(dataDir: string): Database.Database {
   `);
 
   // FTS5 virtual table — CREATE VIRTUAL TABLE IF NOT EXISTS is supported
-  const hasFts = _memoDB
-    .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='memos_fts' LIMIT 1")
-    .get();
+  const hasFts = _memoDB.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='memos_fts' LIMIT 1").get();
   if (!hasFts) {
     _memoDB.exec(`
       CREATE VIRTUAL TABLE memos_fts USING fts5(

@@ -36,7 +36,9 @@ export function updateMemo(
   values.updated_at = new Date().toISOString();
 
   const result = getMemoDb()
-    .prepare(`UPDATE memos SET ${fields.join(', ')} WHERE id = @id AND (agent_group_id = @agent_group_id OR agent_group_id IS NULL)`)
+    .prepare(
+      `UPDATE memos SET ${fields.join(', ')} WHERE id = @id AND (agent_group_id = @agent_group_id OR agent_group_id IS NULL)`,
+    )
     .run(values);
   return result.changes > 0;
 }
@@ -88,10 +90,7 @@ export function searchMemos(agentGroupId: string, query: string, limit = 5): Mem
   }
 }
 
-export function listMemos(
-  agentGroupId: string,
-  opts?: { tag?: string; limit?: number; offset?: number },
-): Memo[] {
+export function listMemos(agentGroupId: string, opts?: { tag?: string; limit?: number; offset?: number }): Memo[] {
   const limit = opts?.limit ?? 20;
   const offset = opts?.offset ?? 0;
 

@@ -44,9 +44,7 @@ export const handleGetAvailableGroups: DeliveryActionHandler = async (_content, 
 
   try {
     const conversations = await adapter.syncConversations();
-    const groups = conversations
-      .filter((c) => c.isGroup)
-      .map((c) => ({ jid: c.platformId, name: c.name }));
+    const groups = conversations.filter((c) => c.isGroup).map((c) => ({ jid: c.platformId, name: c.name }));
 
     // Write to the session IPC folder so the container can read it directly.
     const ipcDir = path.join(sessionDir(session.agent_group_id, session.id), 'ipc');
@@ -59,7 +57,9 @@ export const handleGetAvailableGroups: DeliveryActionHandler = async (_content, 
     }
 
     const lines = groups.map((g) => `• ${g.name} — \`${g.jid}\``).join('\n');
-    reply(`Available WhatsApp groups (${groups.length}):\n\n${lines}\n\nUse the JID with \`register_group\` to wire a group to this agent.`);
+    reply(
+      `Available WhatsApp groups (${groups.length}):\n\n${lines}\n\nUse the JID with \`register_group\` to wire a group to this agent.`,
+    );
 
     log.info('get_available_groups: fetched and wrote groups', {
       sessionId: session.id,

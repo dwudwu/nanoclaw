@@ -16,7 +16,12 @@ import path from 'path';
 
 import { GROUPS_DIR } from '../../config.js';
 import { createAgentGroup, getAgentGroupByFolder } from '../../db/agent-groups.js';
-import { createMessagingGroup, getMessagingGroupByPlatform, createMessagingGroupAgent, getMessagingGroupAgentByPair } from '../../db/messaging-groups.js';
+import {
+  createMessagingGroup,
+  getMessagingGroupByPlatform,
+  createMessagingGroupAgent,
+  getMessagingGroupAgentByPair,
+} from '../../db/messaging-groups.js';
 import { initGroupFilesystem } from '../../group-init.js';
 import { log } from '../../log.js';
 import { writeSessionMessage } from '../../session-manager.js';
