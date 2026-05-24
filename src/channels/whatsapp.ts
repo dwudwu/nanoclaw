@@ -98,7 +98,8 @@ const AUTH_DIR = path.join(process.cwd(), 'store', 'auth');
 const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 const GROUP_METADATA_CACHE_TTL_MS = 60_000; // 1 min for outbound sends
 const SENT_MESSAGE_CACHE_MAX = 256;
-const RECONNECT_DELAY_MS = 5000;
+const RECONNECT_BACKOFF_SECONDS = [0, 5, 10, 20, 40];
+const RECONNECT_MAX_BACKOFF_SECONDS = 60;
 const PENDING_QUESTIONS_MAX = 64;
 
 /** Normalize an option label to a slash command: "Approve" → "/approve" */
@@ -193,6 +194,14 @@ registerChannelAdapter('whatsapp', {
     let sock: WASocket;
     let connected = false;
     let setupConfig: ChannelSetup;
+
+    // Reconnect coordination — single pending timer (dedup so close-event
+    // storms don't stack parallel connectSocket() calls and self-sustain
+    // the storm) + exponential backoff that resets only on a successful
+    // open. See nanocoai/nanoclaw#2348 for the failure mode this guards
+    // against.
+    let reconnectTimer: NodeJS.Timeout | null = null;
+    let consecutiveFailures = 0;
 
     // LID → phone JID mapping (WhatsApp's new ID system)
     const lidToPhoneMap: Record<string, string> = {};
@@ -398,6 +407,24 @@ registerChannelAdapter('whatsapp', {
 
     // --- Socket creation ---
 
+    function scheduleReconnect(): void {
+      // Dedup: a pending reconnect already covers any incoming close events.
+      // Without this, a 440 storm stacks N parallel connectSocket() calls,
+      // each producing another 440 (server sees multiple clients), keeping
+      // the storm alive.
+      if (reconnectTimer) return;
+      const delaySec = RECONNECT_BACKOFF_SECONDS[consecutiveFailures] ?? RECONNECT_MAX_BACKOFF_SECONDS;
+      consecutiveFailures += 1;
+      log.info('Scheduling WhatsApp reconnect', { delaySec, consecutiveFailures });
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connectSocket().catch((err) => {
+          log.error('Reconnect attempt failed', { err });
+          scheduleReconnect();
+        });
+      }, delaySec * 1000);
+    }
+
     async function connectSocket(): Promise<void> {
       const { state, saveCreds } = await useMultiFileAuthState(authDir);
 
@@ -460,15 +487,7 @@ registerChannelAdapter('whatsapp', {
           log.info('WhatsApp connection closed', { reason, shouldReconnect });
 
           if (shouldReconnect) {
-            log.info('Reconnecting...');
-            connectSocket().catch((err) => {
-              log.error('Failed to reconnect, retrying in 5s', { err });
-              setTimeout(() => {
-                connectSocket().catch((err2) => {
-                  log.error('Reconnection retry failed', { err: err2 });
-                });
-              }, RECONNECT_DELAY_MS);
-            });
+            scheduleReconnect();
           } else {
             log.info('WhatsApp logged out');
             if (rejectFirstOpen) {
@@ -479,6 +498,11 @@ registerChannelAdapter('whatsapp', {
           }
         } else if (connection === 'open') {
           connected = true;
+          consecutiveFailures = 0;
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+          }
           log.info('Connected to WhatsApp');
 
           // Clean up pairing code file after successful connection
@@ -756,7 +780,29 @@ registerChannelAdapter('whatsapp', {
 
       async teardown() {
         connected = false;
-        sock?.end(undefined);
+        // Clear any pending reconnect — otherwise it can fire after teardown
+        // and reopen the socket, leaving the host with a zombie WA connection.
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        // Prefer ws.terminate() over sock.end(): end() sends a close frame
+        // and awaits the server's ack, which never arrives during a 440
+        // storm — the close hangs forever past process.exit() and systemd
+        // has to SIGKILL. terminate() drops the underlying TCP connection
+        // without waiting. The cast goes through `unknown` because Baileys
+        // doesn't expose the ws shim publicly; the runtime API is stable
+        // in ws@8.x (Baileys' transitive dep).
+        try {
+          const ws = (sock as unknown as { ws?: { terminate?: () => void } } | undefined)?.ws;
+          if (ws?.terminate) {
+            ws.terminate();
+          } else {
+            sock?.end(undefined);
+          }
+        } catch (err) {
+          log.debug('WhatsApp teardown error (ignored)', { err });
+        }
         log.info('WhatsApp adapter shut down');
       },
 
